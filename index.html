@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grau Craft Recipe Search - FIXED</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        h1, h2, h3 { color: #2c3e50; margin-bottom: 15px; }
+        h1 { text-align: center; color: #1abc9c; margin-bottom: 30px; }
+        .container { background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 30px; margin-bottom: 30px; }
+        .instructions { background: #ecf0f1; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+        .starter-items { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
+        .starter-item { background: #3498db; color: white; padding: 12px 20px; border-radius: 20px; font-weight: bold; text-align: center; min-width: 120px; }
+        .search-section { margin-bottom: 25px; }
+        .search-input { width: 100%; padding: 15px; font-size: 18px; border: 2px solid #bdc3c7; border-radius: 8px; margin-bottom: 15px; transition: border-color 0.3s; }
+        .search-input:focus { outline: none; border-color: #3498db; }
+        .search-button { background: #3498db; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 8px; cursor: pointer; transition: background 0.3s; width: 100%; }
+        .search-button:hover { background: #2980b9; }
+        .search-button:disabled { background: #95a5a6; cursor: not-allowed; }
+        .progress-bar { width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin: 15px 0; }
+        .progress-fill { height: 100%; background: #2ecc71; width: 0%; transition: width 0.3s ease; }
+        .stats { display: flex; justify-content: space-between; background: #ecf0f1; padding: 10px 15px; border-radius: 4px; font-size: 14px; color: #7f8c8d; }
+        .results-section { margin-top: 25px; }
+        .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #ecf0f1; }
+        .recipe-list { list-style: none; }
+        .recipe-item { background: #f8f9fa; margin: 10px 0; padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; transition: transform 0.2s; }
+        .recipe-item:hover { transform: translateX(5px); }
+        .recipe-text { font-weight: 500; font-size: 16px; }
+        .no-results { text-align: center; padding: 30px; color: #7f8c8d; font-style: italic; }
+        .loading { text-align: center; padding: 30px; color: #3498db; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ecf0f1; color: #95a5a6; font-size: 14px; }
+        @media (max-width: 768px) { .starter-items { justify-content: center; } .stats { flex-wrap: wrap; gap: 10px; } .stats div { min-width: 120px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Grau Craft Recipe Search (FIXED VERSION)</h1>
+
+        <div class="instructions">
+            <h2>How to Use</h2>
+            <p>Enter any name from the Grau Craft roster to see what two items combine to create it. Uses the exact game algorithm!</p>
+            <p><strong>Tip:</strong> Try "Nathan Haskell" or "Harsh Patel" to test.</p>
+        </div>
+
+        <div class="starter-items">
+            <h3>🌟 Starter Items (You begin with these):</h3>
+            <div class="starter-item">Krish Patel</div>
+            <div class="starter-item">Harsh Patel</div>
+            <div class="starter-item">Abir Palekar</div>
+            <div class="starter-item">Dylan Santwani</div>
+        </div>
+
+        <div class="search-section">
+            <h2>🔍 Search for Recipes</h2>
+            <input type="text" id="searchInput" class="search-input" placeholder="Enter a name to search (e.g., 'Nathan Haskell')..." autocomplete="off">
+            <button id="searchButton" class="search-button">Search Recipes</button>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="stats" id="stats">
+                <div>Combinations checked: <span id="combinationsChecked">0</span></div>
+                <div>Recipes found: <span id="recipesFound">0</span></div>
+                <div>Time elapsed: <span id="timeElapsed">0s</span></div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="results-header">
+                <h2>📋 Search Results</h2>
+                <button id="clearButton" class="search-button" style="background: #95a5a6; font-size: 14px; padding: 8px 16px;">Clear Results</button>
+            </div>
+            <div id="resultsContainer">
+                <div class="no-results">Enter a name above and click "Search Recipes" to see results.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Grau Craft Recipe Search Tool • Fixed Version • 504 items • 126,756 combinations checked per search
+    </div>
+
+    <script>
+        // ===== ROSTER DATA (EXACT COPY FROM YOUR PROVIDED DATA) =====
+        const STARTERS = [
+            "Krish Patel",
+            "Harsh Patel",
+            "Abir Palekar",
+            "Dylan Santwani"
+        ];
+
+         const ROSTER = [
+            {n:"Jacob Adams", t:"high"},
+            {n:"Ava Aguinaldo", t:"high"},
+            {n:"Addison Aldrich", t:"high"},
+            {n:"Khadijah Ali", t:"distinguished"},
+            {n:"Damian Alonso", t:"honor"},
+            {n:"Zacharia Alramahi", t:"distinguished"},
+            {n:"Joshua Alt", t:"high"},
+            {n:"Annika Anderson", t:"distinguished"},
+            {n:"Dennis Anderson", t:"honor"},
+            {n:"Lily Anderson", t:"high"},
+            {n:"Olivia Anderson", t:"distinguished"},
+            {n:"Alayna Anwar", t:"distinguished"},
+            {n:"David Arditi", t:"high"},
+            {n:"Ariya Ashok", t:"distinguished"},
+            {n:"Elizabeth Atkins", t:"high"},
+            {n:"Gabia Audiejaitis", t:"distinguished"},
+            {n:"Nithya Augusthy", t:"distinguished"},
+            {n:"Laith Azar", t:"honor"},
+            {n:"Joyce Bai", t:"honor"},
+            {n:"Desi Bain", t:"honor"},
+            {n:"Elyse Balluff", t:"honor"},
+            {n:"Vincent Barcelona", t:"distinguished"},
+            {n:"Sam Barlow", t:"distinguished"},
+            {n:"Alaina Barrett", t:"distinguished"},
+            {n:"Audrey Barrett", t:"distinguished"},
+            {n:"Jedidiah Bautista", t:"distinguished"},
+            {n:"Adriana Baverso", t:"high"},
+            {n:"Josephine Bell", t:"high"},
+            {n:"Griffin Bellandi", t:"distinguished"},
+            {n:"Teagan Bellew", t:"distinguished"},
+            {n:"Lianela Bennett", t:"high"},
+            {n:"Brooke Bequeaith", t:"distinguished"},
+            {n:"Logan Bergholtz", t:"high"},
+            {n:"Gibson Berkowitz", t:"distinguished"},
+            {n:"Joshua Bern", t:"distinguished"},
+            {n:"Carter Berning", t:"distinguished"},
+            {n:"Mateo Besteiro", t:"high"},
+            {n:"Mason Betz-Waters", t:"distinguished"},
+            {n:"Christina Bezanis", t:"distinguished"},
+            {n:"Isabella Biggers", t:"honor"},
+            {n:"Gavin Bilik", t:"high"},
+            {n:"Jack Bishel", t:"distinguished"},
+            {n:"Benjamin Blank", t:"distinguished"},
+            {n:"Calvin Boettcher", t:"high"},
+            {n:"Calum Bohan", t:"high"},
+            {n:"Katherine Boogerd", t:"distinguished"},
+            {n:"Quinn Borden", t:"high"},
+            {n:"Declan Boyce", t:"high"},
+            {n:"Theodore Bramlett", t:"distinguished"},
+            {n:"Christian Bries", t:"high"},
+            {n:"Spencer Brignac", t:"distinguished"},
+            {n:"John Brouwer", t:"distinguished"},
+            {n:"Gavin Brown", t:"distinguished"},
+            {n:"Ethan Browning", t:"high"},
+            {n:"Madeline Bryant", t:"high"},
+            {n:"Kaylee Buda", t:"honor"},
+            {n:"Artem Bundur", t:"high"},
+            {n:"Emerson Burke", t:"distinguished"},
+            {n:"Katelyn Burke", t:"distinguished"},
+            {n:"Jaeden Burnett", t:"honor"},
+            {n:"Noah Byrne", t:"distinguished"},
+            {n:"Grace Cameron", t:"high"},
+            {n:"Alan Camino", t:"distinguished"},
+            {n:"Sean Cannon", t:"honor"},
+            {n:"Amelia Casey", t:"honor"},
+            {n:"Sara Castillo", t:"distinguished"},
+            {n:"Chase Castro", t:"honor"},
+            {n:"Igor De Castro", t:"honor"},
+            {n:"Graeme Cavanagh", t:"honor"},
+            {n:"Alice Cecil", t:"distinguished"},
+            {n:"Sean Cerney", t:"distinguished"},
+            {n:"Danielle Cesarini", t:"honor"},
+            {n:"Ethan Chan", t:"distinguished"},
+            {n:"Jinwoo Chang", t:"honor"},
+            {n:"Andrew Charlson", t:"high"},
+            {n:"Amy Chen", t:"distinguished"},
+            {n:"Jason Cheng", t:"distinguished"},
+            {n:"Benjamin Childers", t:"distinguished"},
+            {n:"Sydney Chrenka", t:"distinguished"},
+            {n:"Kyle Clark", t:"high"},
+            {n:"Sebastian Claver", t:"high"},
+            {n:"Bellis Colbenson", t:"high"},
+            {n:"Emma Coneys", t:"distinguished"},
+            {n:"Parker Conway", t:"distinguished"},
+            {n:"Henry Cook", t:"distinguished"},
+            {n:"Ian Cranston", t:"high"},
+            {n:"Estella Czech", t:"distinguished"},
+            {n:"Rianna D'Costa", t:"high"},
+            {n:"Jayanti Dar", t:"distinguished"},
+            {n:"Debabandya Dash", t:"distinguished"},
+            {n:"Thomas Davenport", t:"high"},
+            {n:"Mackenzie Day", t:"high"},
+            {n:"Connor DeBora", t:"high"},
+            {n:"Olivia DeCicco", t:"honor"},
+            {n:"Dylan DeFalco", t:"high"},
+            {n:"Charlie Debski", t:"high"},
+            {n:"Kaitlyn Delaney", t:"high"},
+            {n:"Alejandra Perez Delgado", t:"honor"},
+            {n:"Mahathi Dharmavaram", t:"distinguished"},
+            {n:"Kairav DiClemente", t:"distinguished"},
+            {n:"Martin Dkhillon", t:"distinguished"},
+            {n:"Connor Doyle", t:"distinguished"},
+            {n:"Ashley Drevalas", t:"high"},
+            {n:"Marie Dubsky", t:"distinguished"},
+            {n:"Iana Dugarova", t:"high"},
+            {n:"Willow Dulli", t:"distinguished"},
+            {n:"Chad Earl", t:"distinguished"},
+            {n:"Reagan Eertmoed", t:"distinguished"},
+            {n:"Lia Elliott", t:"distinguished"},
+            {n:"Ashton Eppler", t:"honor"},
+            {n:"Abigail Epstein", t:"distinguished"},
+            {n:"Nils Oskar Vengelin Eriksson", t:"high"},
+            {n:"Henry Erives", t:"distinguished"},
+            {n:"Armaan Essof", t:"honor"},
+            {n:"Ayhem Etorki", t:"honor"},
+            {n:"Norah Ewanic", t:"distinguished"},
+            {n:"Taha Ezzy", t:"high"},
+            {n:"Usman Faruqi", t:"distinguished"},
+            {n:"Zaynah Fatima", t:"high"},
+            {n:"Addison Feldmann", t:"high"},
+            {n:"Nathaniel Fenton", t:"high"},
+            {n:"Isabella Ferro", t:"high"},
+            {n:"Joseph Ferro", t:"distinguished"},
+            {n:"Cade Fischer", t:"high"},
+            {n:"Bryan Fitzgerald", t:"high"},
+            {n:"Maria Fotou", t:"honor"},
+            {n:"Hailey Frederick", t:"distinguished"},
+            {n:"Keira Friant", t:"distinguished"},
+            {n:"Marlena Galo", t:"honor"},
+            {n:"Kayden Garras", t:"honor"},
+            {n:"Megan Gellert", t:"honor"},
+            {n:"Martin Geno", t:"high"},
+            {n:"Nina George", t:"distinguished"},
+            {n:"Samantha Gervase", t:"distinguished"},
+            {n:"McKenzie Gettemy", t:"honor"},
+            {n:"Maria Giannopoulos", t:"distinguished"},
+            {n:"Kai Glover", t:"honor"},
+            {n:"Logan Godfrey", t:"distinguished"},
+            {n:"Alexa Goldstone", t:"distinguished"},
+            {n:"Joseph Goman", t:"distinguished"},
+            {n:"Mauricio Perez Gomez", t:"distinguished"},
+            {n:"Abigail Tapia Gonzalez", t:"distinguished"},
+            {n:"Carter Gorrell", t:"high"},
+            {n:"Jillian Grabowski", t:"distinguished"},
+            {n:"Ethan Gray", t:"honor"},
+            {n:"Lainey Grimes", t:"high"},
+            {n:"Jacqueline Groom", t:"high"},
+            {n:"Imaan Gunja", t:"distinguished"},
+            {n:"Evan Hader", t:"distinguished"},
+            {n:"Maddox Hale", t:"honor"},
+            {n:"Moiz Hameed", t:"distinguished"},
+            {n:"Graham Hanchak", t:"distinguished"},
+            {n:"Dean Harazin", t:"distinguished"},
+            {n:"Noga Harnik", t:"distinguished"},
+            {n:"Hazim Hasan", t:"distinguished"},
+            {n:"Nathan Haskell", t:"distinguished"},
+            {n:"Christian Hay", t:"honor"},
+            {n:"Simon Hayes", t:"honor"},
+            {n:"Mackenzie Heidmann", t:"high"},
+            {n:"Andrew Hendrix", t:"distinguished"},
+            {n:"Abigail Hennessey", t:"distinguished"},
+            {n:"Blake Highhouse", t:"distinguished"},
+            {n:"Piper Hill", t:"distinguished"},
+            {n:"Molly Holman", t:"distinguished"},
+            {n:"Jasper Holt", t:"honor"},
+            {n:"Evan Horn", t:"distinguished"},
+            {n:"Zoey Horn", t:"high"},
+            {n:"Nikolas Horner", t:"distinguished"},
+            {n:"Reagan Hull", t:"distinguished"},
+            {n:"Isra Hussain", t:"distinguished"},
+            {n:"Kaitlin Hutton", t:"distinguished"},
+            {n:"Jonathan Imbriaco", t:"distinguished"},
+            {n:"Unzila Imran", t:"high"},
+            {n:"Valencia Ingram", t:"distinguished"},
+            {n:"Leila Ishikawa", t:"distinguished"},
+            {n:"Priscilla Issa", t:"high"},
+            {n:"Trevor Wendt Ivezic", t:"honor"},
+            {n:"Jacob Jabbar", t:"honor"},
+            {n:"Ethan Jones", t:"high"},
+            {n:"Mason Jones", t:"distinguished"},
+            {n:"Sophia Joo", t:"distinguished"},
+            {n:"Mackenzie Jordan", t:"high"},
+            {n:"Akilah Jumani", t:"high"},
+            {n:"Daniel Jun", t:"high"},
+            {n:"David Jun", t:"honor"},
+            {n:"Sahana Kakodkar", t:"distinguished"},
+            {n:"Ella Kalinin", t:"distinguished"},
+            {n:"Bailey Kane", t:"distinguished"},
+            {n:"Eleanor Kane", t:"distinguished"},
+            {n:"Raghu Kannan", t:"distinguished"},
+            {n:"Eesha Kanuri", t:"distinguished"},
+            {n:"Arsal Kashif", t:"distinguished"},
+            {n:"Connor Kasper", t:"honor"},
+            {n:"Jillian Katz", t:"high"},
+            {n:"Jermaine Kenady", t:"high"},
+            {n:"Bercel Kenesei", t:"distinguished"},
+            {n:"Ethan Kennedy", t:"high"},
+            {n:"Eshaal Khan", t:"distinguished"},
+            {n:"Keira Khant", t:"distinguished"},
+            {n:"Leyla Kilicarslan", t:"distinguished"},
+            {n:"Harry Kim", t:"distinguished"},
+            {n:"Katherine Kim", t:"distinguished"},
+            {n:"James Kirkland", t:"honor"},
+            {n:"Kayleigh Knight", t:"honor"},
+            {n:"Ryan Kong", t:"distinguished"},
+            {n:"Annabelle Koo", t:"distinguished"},
+            {n:"Jeana Koo", t:"honor"},
+            {n:"Wiktor Kopacki", t:"honor"},
+            {n:"Luka Kordic", t:"distinguished"},
+            {n:"Ava Kostelny", t:"distinguished"},
+            {n:"Manasvi Kosuri", t:"distinguished"},
+            {n:"Jacob Kosyluk", t:"distinguished"},
+            {n:"Cooper Kozielski", t:"distinguished"},
+            {n:"Izzy Kristofik", t:"distinguished"},
+            {n:"Annabelle Kritzer", t:"distinguished"},
+            {n:"Shreya Deepak Kumar", t:"distinguished"},
+            {n:"Krishoy Kundal", t:"distinguished"},
+            {n:"Martin Kuta", t:"distinguished"},
+            {n:"Augustas Kuzabavicius", t:"honor"},
+            {n:"John LaClair", t:"distinguished"},
+            {n:"Nicholas Laneville", t:"high"},
+            {n:"Addison Langs", t:"distinguished"},
+            {n:"Jeorgina Ellise Lanuza", t:"honor"},
+            {n:"Kacy Laqui", t:"high"},
+            {n:"Kyle Laqui", t:"distinguished"},
+            {n:"Jack Lardner", t:"high"},
+            {n:"Jay Larson", t:"distinguished"},
+            {n:"Noah Latakas", t:"distinguished"},
+            {n:"Zander Latko", t:"honor"},
+            {n:"Emma Lauzen", t:"distinguished"},
+            {n:"Anna Lazovski", t:"distinguished"},
+            {n:"Alexander Lee", t:"distinguished"},
+            {n:"Joshua Lee", t:"high"},
+            {n:"Cali Lenz", t:"honor"},
+            {n:"Maxwell Leon", t:"high"},
+            {n:"Cassidy Leonardo", t:"high"},
+            {n:"Jack Liabo", t:"honor"},
+            {n:"Zuwei Liang", t:"honor"},
+            {n:"Kyan Link", t:"distinguished"},
+            {n:"Ernst Lisek", t:"distinguished"},
+            {n:"Jack Littig", t:"distinguished"},
+            {n:"Anthony Liu", t:"distinguished"},
+            {n:"Saidi Liu", t:"distinguished"},
+            {n:"Sophia Liu", t:"distinguished"},
+            {n:"Alicia Medina Llamas", t:"honor"},
+            {n:"Elyssa Lopez", t:"distinguished"},
+            {n:"Jackson Loth", t:"distinguished"},
+            {n:"Anwen Lu", t:"distinguished"},
+            {n:"Ethan Lubek", t:"distinguished"},
+            {n:"Mia Lullo", t:"distinguished"},
+            {n:"Mia Ly", t:"distinguished"},
+            {n:"Evan Maciaga", t:"high"},
+            {n:"Brooklynn Macko", t:"high"},
+            {n:"Roshini Madaboosi", t:"distinguished"},
+            {n:"Linnea Madrid", t:"distinguished"},
+            {n:"Yashica Makkar", t:"distinguished"},
+            {n:"Juliana Malczewski", t:"distinguished"},
+            {n:"Kyla Malhotra", t:"distinguished"},
+            {n:"Sana Malik", t:"honor"},
+            {n:"Sia Maniar", t:"distinguished"},
+            {n:"Mithun Manikandan", t:"high"},
+            {n:"Anthony Matthews", t:"honor"},
+            {n:"Reginald Matthews", t:"honor"},
+            {n:"Sri Matthews", t:"honor"},
+            {n:"Jackson McBroom", t:"distinguished"},
+            {n:"Decker McDonald", t:"high"},
+            {n:"Brady McGrath", t:"distinguished"},
+            {n:"Bryson McGrath", t:"distinguished"},
+            {n:"Molly McKay", t:"honor"},
+            {n:"Cora Meech", t:"honor"},
+            {n:"Joshua Melsa", t:"honor"},
+            {n:"Gracie Meluch", t:"honor"},
+            {n:"Milly Mendez", t:"distinguished"},
+            {n:"Yash Menon", t:"distinguished"},
+            {n:"Riley Mertz", t:"high"},
+            {n:"Jonah Meslin", t:"honor"},
+            {n:"Ella Mewhorter", t:"distinguished"},
+            {n:"Emily Meyer", t:"honor"},
+            {n:"Marina Micic", t:"distinguished"},
+            {n:"Alexa Miller", t:"high"},
+            {n:"Audrey Miller", t:"high"},
+            {n:"Avery Miller", t:"high"},
+            {n:"Andrew Mills", t:"high"},
+            {n:"Katherine Mitchell", t:"high"},
+            {n:"Lauren Moderi", t:"distinguished"},
+            {n:"Marion Baroza Montes", t:"distinguished"},
+            {n:"Sean Mulvey", t:"honor"},
+            {n:"Lillian Murphy", t:"honor"},
+            {n:"Luke Muszynski", t:"distinguished"},
+            {n:"Sameen Naeem", t:"high"},
+            {n:"Nimai Nagireddy", t:"distinguished"},
+            {n:"Manuel Najera", t:"distinguished"},
+            {n:"Miah Napekoski", t:"distinguished"},
+            {n:"Benjamin Napp", t:"high"},
+            {n:"Hasan Naqvi", t:"distinguished"},
+            {n:"Alexandra Narbett", t:"honor"},
+            {n:"Taran Nathan", t:"distinguished"},
+            {n:"Dhwani Nayi", t:"distinguished"},
+            {n:"Ava Neben", t:"distinguished"},
+            {n:"Landon Nelson", t:"honor"},
+            {n:"Kaleb Neumann", t:"distinguished"},
+            {n:"Karen Ng", t:"distinguished"},
+            {n:"Kendall Nghiem", t:"distinguished"},
+            {n:"Kinsler Nghiem", t:"distinguished"},
+            {n:"Leopold Nguyen", t:"honor"},
+            {n:"Riley Nichols", t:"high"},
+            {n:"Noah Nicholus", t:"distinguished"},
+            {n:"Ryan Nicholus", t:"distinguished"},
+            {n:"Madelyn Noonan", t:"honor"},
+            {n:"Mila Norkett", t:"high"},
+            {n:"Alexa Novak", t:"distinguished"},
+            {n:"Avery Nowak", t:"distinguished"},
+            {n:"Jaxen O'Brien", t:"high"},
+            {n:"Nina O'Brien", t:"distinguished"},
+            {n:"Liam O'Donovan", t:"high"},
+            {n:"Olivia O'Neill", t:"honor"},
+            {n:"Thomas O'Neill", t:"honor"},
+            {n:"Abigail O'Sullivan", t:"high"},
+            {n:"Annabelle Odenbeck", t:"distinguished"},
+            {n:"Jenna Okash", t:"honor"},
+            {n:"Olutofunmi Olarewaju", t:"distinguished"},
+            {n:"Nicolas Olvera", t:"honor"},
+            {n:"Carly Onorati", t:"high"},
+            {n:"Secilia Orihuela", t:"high"},
+            {n:"Ryley Orlanes", t:"distinguished"},
+            {n:"Maxwell Padilla", t:"distinguished"},
+            {n:"Abir Palekar", t:"distinguished"},
+            {n:"Ryan Pall", t:"distinguished"},
+            {n:"Ethan Pangman", t:"high"},
+            {n:"Titus Park", t:"distinguished"},
+            {n:"Connor Parkhurst", t:"high"},
+            {n:"Aditi Patel", t:"distinguished"},
+            {n:"Harsh Patel", t:"distinguished"},
+            {n:"Krish Patel", t:"distinguished"},
+            {n:"Kush Patel", t:"distinguished"},
+            {n:"Daniel Pena", t:"honor"},
+            {n:"Princeton Perkins", t:"honor"},
+            {n:"Grayson Pfile", t:"distinguished"},
+            {n:"Rohan Philip", t:"honor"},
+            {n:"Noah Pickett", t:"distinguished"},
+            {n:"Shyla Picone", t:"distinguished"},
+            {n:"Caroline Pieczynski", t:"honor"},
+            {n:"Eliaz Pimentel", t:"distinguished"},
+            {n:"Lilliana Plitt", t:"distinguished"},
+            {n:"Sreeram Potnuru", t:"distinguished"},
+            {n:"Cullen Potter", t:"high"},
+            {n:"Timothy Preissig", t:"distinguished"},
+            {n:"Owen Prodoehl", t:"high"},
+            {n:"Bennett Puglielli", t:"distinguished"},
+            {n:"Meera Puri", t:"distinguished"},
+            {n:"Jaxon Pytlak", t:"honor"},
+            {n:"Sesat Campos Quesada", t:"distinguished"},
+            {n:"Lauren Quigg", t:"honor"},
+            {n:"Hammad Qureshi", t:"high"},
+            {n:"Hashir Qureshi", t:"distinguished"},
+            {n:"Rayaan Rahman", t:"honor"},
+            {n:"Magaranth Rajkumar", t:"distinguished"},
+            {n:"Adit Rammessh", t:"distinguished"},
+            {n:"Rodrigo Ramos", t:"honor"},
+            {n:"Bilal Ramzanali", t:"distinguished"},
+            {n:"Hassan Rashid", t:"high"},
+            {n:"Eva Reber", t:"distinguished"},
+            {n:"Benjamin Reed", t:"distinguished"},
+            {n:"Colin Regan", t:"distinguished"},
+            {n:"Aspen Reiner", t:"distinguished"},
+            {n:"Arianna Rico", t:"distinguished"},
+            {n:"Betty Riddle", t:"distinguished"},
+            {n:"Lydia Ripoli", t:"distinguished"},
+            {n:"Isaiah Ro", t:"distinguished"},
+            {n:"Frida Rodd", t:"distinguished"},
+            {n:"Emma Rodriguez", t:"distinguished"},
+            {n:"Andrew Rosenfeld", t:"distinguished"},
+            {n:"Oliver Ross", t:"honor"},
+            {n:"Mialee Rostar", t:"high"},
+            {n:"Ian Rottersman", t:"high"},
+            {n:"Elisebeth Rowe", t:"honor"},
+            {n:"Charles Rozsypal", t:"high"},
+            {n:"Erin Rubeck", t:"distinguished"},
+            {n:"Cade Russell", t:"distinguished"},
+            {n:"Matthew Russo", t:"distinguished"},
+            {n:"Madeline Saccameno", t:"distinguished"},
+            {n:"Nicole Sacek", t:"distinguished"},
+            {n:"Meghna Saha", t:"distinguished"},
+            {n:"Kedharan Sahadewan", t:"distinguished"},
+            {n:"Alhaan Sahibzada", t:"distinguished"},
+            {n:"Jad Salem", t:"high"},
+            {n:"Neel Samal", t:"distinguished"},
+            {n:"Haley Sanchez", t:"high"},
+            {n:"Joshua Sanchez", t:"distinguished"},
+            {n:"Dylan Santwani", t:"distinguished"},
+            {n:"Tyler Saturley", t:"honor"},
+            {n:"George Sbarboro", t:"distinguished"},
+            {n:"Owen Schade", t:"distinguished"},
+            {n:"Savannah Schaefer", t:"distinguished"},
+            {n:"Nathanael Schaeffer", t:"honor"},
+            {n:"Anna Schiesser", t:"distinguished"},
+            {n:"Jonathan Schmitt", t:"honor"},
+            {n:"Finn Schneeberger", t:"honor"},
+            {n:"Jack Schneeberger", t:"honor"},
+            {n:"Marlee Schultz", t:"honor"},
+            {n:"Owen Schulz", t:"honor"},
+            {n:"Lola Schwerha", t:"distinguished"},
+            {n:"Sofia Scopacasa", t:"distinguished"},
+            {n:"Jocelyn Seludo", t:"distinguished"},
+            {n:"Sean Serbinski", t:"high"},
+            {n:"Alexander Serice", t:"distinguished"},
+            {n:"Matthew Seybert", t:"distinguished"},
+            {n:"Murtaza Shabbir", t:"distinguished"},
+            {n:"Aarav Shah", t:"distinguished"},
+            {n:"Gianna Sharko", t:"high"},
+            {n:"Akmaljon Shavkatov", t:"distinguished"},
+            {n:"Kateryna Shevchenko", t:"honor"},
+            {n:"Aarav Siddavaatam", t:"distinguished"},
+            {n:"Alexander Simatos", t:"honor"},
+            {n:"Hayden Siorek", t:"high"},
+            {n:"Jack Sjordal", t:"distinguished"},
+            {n:"Justin Skryd", t:"high"},
+            {n:"McKenna Sledgister", t:"honor"},
+            {n:"Claire Smetters", t:"distinguished"},
+            {n:"Orson Smith", t:"high"},
+            {n:"Adrian Socha", t:"distinguished"},
+            {n:"Shlok Soudagar", t:"distinguished"},
+            {n:"Alexander Sowa", t:"honor"},
+            {n:"Tessa Springer", t:"honor"},
+            {n:"Catherine Squire", t:"distinguished"},
+            {n:"Katherine Stadnyk", t:"high"},
+            {n:"Jacob Stern", t:"distinguished"},
+            {n:"Samantha Stientjes", t:"distinguished"},
+            {n:"Lucy Stiers", t:"high"},
+            {n:"Maya Stohner", t:"distinguished"},
+            {n:"Daniel Stoor", t:"distinguished"},
+            {n:"Brady Strang", t:"distinguished"},
+            {n:"Arjun Sud", t:"distinguished"},
+            {n:"Melva Gallego Sugar", t:"distinguished"},
+            {n:"Sahana Suresh", t:"distinguished"},
+            {n:"Madilyn Svejda", t:"honor"},
+            {n:"Colin Swain", t:"high"},
+            {n:"Thomas Swain", t:"distinguished"},
+            {n:"Kyle Szczech", t:"distinguished"},
+            {n:"Joseph Tamsevicius", t:"high"},
+            {n:"Gavin Tangalin", t:"high"},
+            {n:"Tassnim Tarhuni", t:"high"},
+            {n:"Amina Tayba", t:"honor"},
+            {n:"Halle Taylor", t:"distinguished"},
+            {n:"Aksel Thakkar", t:"high"},
+            {n:"Brock Thakkar", t:"high"},
+            {n:"Charlie Thakkar", t:"high"},
+            {n:"Zoey Tian", t:"distinguished"},
+            {n:"Fletcher Trapp", t:"distinguished"},
+            {n:"Leo Trupia", t:"distinguished"},
+            {n:"Luke Tumilty", t:"honor"},
+            {n:"Samuel Tupek", t:"high"},
+            {n:"Avery Uhler", t:"high"},
+            {n:"Avni Vaghani", t:"distinguished"},
+            {n:"Anna Valkanos", t:"distinguished"},
+            {n:"Bryanna Valverde", t:"honor"},
+            {n:"Sean VanBaalen", t:"distinguished"},
+            {n:"Abigail VanDyke", t:"distinguished"},
+            {n:"Jack Varghese", t:"distinguished"},
+            {n:"Anthony Velarde", t:"honor"},
+            {n:"Cooper Venegoni", t:"distinguished"},
+            {n:"Hailey Veome", t:"distinguished"},
+            {n:"Vivienne Verano", t:"high"},
+            {n:"Ludovic Videau", t:"distinguished"},
+            {n:"Anthony Villanova", t:"honor"},
+            {n:"Charles Vonderhorst", t:"distinguished"},
+            {n:"Caden Walk", t:"distinguished"},
+            {n:"Sarah Walters", t:"distinguished"},
+            {n:"Davin Wang", t:"distinguished"},
+            {n:"Emily Wang", t:"distinguished"},
+            {n:"Emma Wang", t:"distinguished"},
+            {n:"Yitang Wang", t:"distinguished"},
+            {n:"Emma Ward", t:"high"},
+            {n:"Emilia Wasiak", t:"distinguished"},
+            {n:"Carson Wegner", t:"high"},
+            {n:"Ina Wei", t:"distinguished"},
+            {n:"Elizabeth Weigel", t:"distinguished"},
+            {n:"Dylan Wickmann", t:"honor"},
+            {n:"Benjamin Wilcox", t:"high"},
+            {n:"Derek Williamson", t:"distinguished"},
+            {n:"Arya Wilson", t:"honor"},
+            {n:"Madelyn Wilson", t:"honor"},
+            {n:"Sanjay Wilson", t:"distinguished"},
+            {n:"Charlotte Wojdyla", t:"distinguished"},
+            {n:"Allison Wolf", t:"distinguished"},
+            {n:"Samantha Wolk", t:"high"},
+            {n:"Jaden Wong", t:"distinguished"},
+            {n:"Katelyn Wong", t:"distinguished"},
+            {n:"Misha Wong", t:"distinguished"},
+            {n:"Amelia Wright", t:"distinguished"},
+            {n:"Rina Xu", t:"distinguished"},
+            {n:"Connor Yao", t:"high"},
+            {n:"Joshitha Yarasani", t:"distinguished"},
+            {n:"Roman Yermak", t:"honor"},
+            {n:"Nathaniel Yoon", t:"high"},
+            {n:"Mandy Yuan", t:"distinguished"},
+            {n:"Cody Zelazny", t:"honor"},
+            {n:"Jules Zelazny", t:"honor"},
+            {n:"George Zenow", t:"distinguished"},
+            {n:"Grace Zhang", t:"distinguished"},
+            {n:"Zoe Zheng", t:"high"},
+            {n:"Jonathan Zhou", t:"distinguished"},
+            {n:"William Zigterman", t:"distinguished"},
+            {n:"Alexandra Zitzka", t:"distinguished"}
+        ];
+
+          // ===== CRAFTING ALGORITHM (EXACT COPY) =====
+        const SHORTLIST_SIZE = 10;
+        const RANK_DECAY = 0.82;
+
+        function craftKey(s){
+            return String(s).toLowerCase().replace(/[^a-z]/g, "");
+        }
+
+        function firstNameOf(s){
+            const p = String(s).trim().split(/\s+/);
+            return p[0] || "";
+        }
+
+        function lastNameOf(s){
+            const p = String(s).trim().split(/\s+/);
+            return p.length > 1 ? p.slice(1).join(" ") : p[0];
+        }
+
+        function craftHash(s){
+            let h = 2166136261;
+            for(let i = 0; i < s.length; i++){
+                h ^= s.charCodeAt(i);
+                h = (h * 16777619) >>> 0;
+            }
+            return h >>> 0;
+        }
+
+        function bigramScore(a, b){
+            if(a.length < 2 || b.length < 2) return a === b ? 1 : 0;
+            const counts = {};
+            let total = 0, hits = 0;
+            for(let i = 0; i < a.length - 1; i++){
+                const g = a.substr(i, 2);
+                counts[g] = (counts[g] || 0) + 1;
+            }
+            for(let i = 0; i < b.length - 1; i++){
+                const g = b.substr(i, 2);
+                if(counts[g] > 0) { counts[g]--; hits++; }
+                total++;
+            }
+            return (2 * hits) / ((a.length - 1) + total);
+        }
+
+        function letterScore(a, b){
+            const counts = {};
+            let hits = 0;
+            for(let i = 0; i < a.length; i++){
+                const c = a.charAt(i);
+                counts[c] = (counts[c] || 0) + 1;
+            }
+            for(let i = 0; i < b.length; i++){
+                const c = b.charAt(i);
+                if(counts[c] > 0) { counts[c]--; hits++; }
+            }
+            if(!a.length || !b.length) return 0;
+            return (2 * hits) / (a.length + b.length);
+        }
+
+        function initialScore(a, b){
+            const af = craftKey(firstNameOf(a)), al = craftKey(lastNameOf(a));
+            const bf = craftKey(firstNameOf(b)), bl = craftKey(lastNameOf(b));
+            let s = 0;
+            if(af.charAt(0) && af.charAt(0) === bf.charAt(0)) s += 0.5;
+            if(al.charAt(0) && al.charAt(0) === bl.charAt(0)) s += 0.5;
+            if(af.length > 2 && bf.length > 2 && af.substr(0,3) === bf.substr(0,3)) s += 0.25;
+            if(al.length > 2 && bl.length > 2 && al.substr(0,3) === bl.substr(0,3)) s += 0.25;
+            return Math.min(1, s);
+        }
+
+        function similarity(a, b){
+            const ka = craftKey(a), kb = craftKey(b);
+            return 0.5 * bigramScore(ka, kb)
+                 + 0.3 * letterScore(ka, kb)
+                 + 0.2 * initialScore(a, b);
+        }
+
+        function blendsOf(a, b){
+            const ka = craftKey(a), kb = craftKey(b);
+            const splice = ka.substr(0, Math.ceil(ka.length / 2)) + kb.substr(Math.floor(kb.length / 2));
+            return [
+                firstNameOf(a) + " " + lastNameOf(b),
+                firstNameOf(b) + " " + lastNameOf(a),
+                splice
+            ];
+        }
+
+        function combine(a, b){
+            try {
+                const pair = [a, b].sort();
+                const blends = blendsOf(pair[0], pair[1]);
+                const scored = [];
+
+                for(let i = 0; i < ROSTER.length; i++){
+                    const name = ROSTER[i].n;
+                    if(name === a || name === b) continue;
+                    let best = 0;
+                    for(let j = 0; j < blends.length; j++){
+                        const s = similarity(name, blends[j]);
+                        if(s > best) best = s;
+                    }
+                    scored.push({ n: name, s: best });
+                }
+
+                scored.sort((x, y) => y.s - x.s || (x.n < y.n ? -1 : 1));
+
+                const shortlist = scored.slice(0, SHORTLIST_SIZE);
+                if(!shortlist.length) return null;
+
+                const weights = [];
+                let total = 0;
+                for(let i = 0; i < shortlist.length; i++){
+                    const w = Math.pow(shortlist[i].s, 3) * Math.pow(RANK_DECAY, i);
+                    weights.push(w);
+                    total += w;
+                }
+                if(total <= 0) return shortlist[0].n;
+
+                let roll = (craftHash(pair[0] + "+" + pair[1]) / 4294967296) * total;
+                for(let i = 0; i < shortlist.length; i++){
+                    roll -= weights[i];
+                    if(roll <= 0) return shortlist[i].n;
+                }
+                return shortlist[shortlist.length - 1].n;
+            } catch(error) {
+                console.error("Error in combine function:", error);
+                throw error;
+            }
+        }
+
+      // ===== SEARCH FUNCTIONALITY =====
+        let searchInProgress = false;
+        let startTime = 0;
+
+        function findRecipesForTarget(targetName, maxResults = 10) {
+            if(searchInProgress) return { recipes: [], combinationsChecked: 0, totalCombinations: 0 };
+
+            searchInProgress = true;
+            startTime = Date.now();
+
+            const names = ROSTER.map(person => person.n);
+            const recipes = [];
+            let combinationsChecked = 0;
+            const totalCombinations = (names.length * (names.length - 1)) / 2;
+
+            const updateProgress = () => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                const percent = Math.min(99, ((combinationsChecked / totalCombinations) * 100).toFixed(1));
+                document.getElementById('progressFill').style.width = percent + '%';
+                document.getElementById('combinationsChecked').textContent = combinationsChecked.toLocaleString();
+                document.getElementById('timeElapsed').textContent = elapsed + 's';
+            };
+
+            const progressInterval = setInterval(updateProgress, 100);
+
+            try {
+                for(let i = 0; i < names.length; i++){
+                    for(let j = i + 1; j < names.length; j++){
+                        const name1 = names[i];
+                        const name2 = names[j];
+                        const result = combine(name1, name2);
+
+                        if(result === targetName){
+                            recipes.push([name1, name2]);
+                            if(recipes.length >= maxResults) break;
+                        }
+
+                        combinationsChecked++;
+                    }
+                    if(recipes.length >= maxResults) break;
+                }
+            } finally {
+                clearInterval(progressInterval);
+                document.getElementById('progressFill').style.width = '100%';
+                searchInProgress = false;
+            }
+
+            return {
+                recipes: recipes,
+                combinationsChecked: combinationsChecked,
+                totalCombinations: totalCombinations
+            };
+        }
+       // ===== UI EVENT HANDLERS =====
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("🎯 Grau Craft Website Loaded Successfully");
+            console.log("📊 ROSTER Loaded:", ROSTER.length, "items");
+
+            const searchButton = document.getElementById('searchButton');
+            const searchInput = document.getElementById('searchInput');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const clearButton = document.getElementById('clearButton');
+
+            searchButton.addEventListener('click', async () => {
+                const targetName = searchInput.value.trim();
+                if(!targetName){
+                    alert('Please enter a name to search');
+                    return;
+                }
+
+                searchButton.disabled = true;
+                searchButton.textContent = 'Searching...';
+                resultsContainer.innerHTML = '<div class="loading">Searching through 126,756 combinations...</div>';
+
+                document.getElementById('progressFill').style.width = '0%';
+                document.getElementById('combinationsChecked').textContent = '0';
+                document.getElementById('recipesFound').textContent = '0';
+                document.getElementById('timeElapsed').textContent = '0s';
+
+                try {
+                    const result = findRecipesForTarget(targetName, 15);
+
+                    if(result.recipes.length === 0){
+                        resultsContainer.innerHTML = `
+                            <div class="no-results">
+                                No direct 2-item recipes found for "<strong>${targetName}</strong>".<br>
+                                This might be a starter item or require more complex combinations.
+                            </div>
+                        `;
+                    } else {
+                        let resultsHTML = `<div class="recipe-list">`;
+                        result.recipes.forEach((recipe, index) => {
+                            resultsHTML += `
+                                <div class="recipe-item">
+                                    <div class="recipe-text">
+                                        ${index + 1}. <strong>${recipe[0]}</strong> + <strong>${recipe[1]}</strong> = <strong>${targetName}</strong>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        resultsHTML += `</div>`;
+                        resultsContainer.innerHTML = resultsHTML;
+                    }
+
+                    document.getElementById('recipesFound').textContent = result.recipes.length;
+                } catch(error) {
+                    console.error("Search error:", error);
+                    resultsContainer.innerHTML = `<div class="no-results">An error occurred during search. Please check the console for details.</div>`;
+                } finally {
+                    searchButton.disabled = false;
+                    searchButton.textContent = 'Search Recipes';
+                }
+            });
+
+            searchInput.addEventListener('keypress', (e) => {
+                if(e.key === 'Enter') {
+                    searchButton.click();
+                }
+            });
+
+            clearButton.addEventListener('click', () => {
+                searchInput.value = '';
+                resultsContainer.innerHTML = '<div class="no-results">Enter a name above and click "Search Recipes" to see results.</div>';
+                document.getElementById('progressFill').style.width = '0%';
+                document.getElementById('combinationsChecked').textContent = '0';
+                document.getElementById('recipesFound').textContent = '0';
+                document.getElementById('timeElapsed').textContent = '0s';
+                searchInput.focus();
+            });
+
+            // Focus on load
+            searchInput.focus();
+        });
+    </script>
+</body>
+</html>
+          
